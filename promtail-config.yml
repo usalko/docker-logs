@@ -15,7 +15,7 @@ scrape_configs:
   - targets:
       - localhost
     labels:
-      job: varlogs
+      job: syslog
       __path__: /host/logs/syslog
 
 - job_name: containers
@@ -24,7 +24,7 @@ scrape_configs:
   - targets:
       - localhost
     labels:
-      job: containerlogs
+      job: docker
       __path__: /var/lib/docker/containers/*/*log
 
   # --log-opt tag="{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
