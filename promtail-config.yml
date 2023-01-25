@@ -16,10 +16,9 @@ scrape_configs:
       - localhost
     labels:
       job: varlogs
-      __path__: /var/log/*log
+      __path__: /host/logs/*log
 
 - job_name: containers
-  # entry_parser: raw
 
   static_configs:
   - targets:
@@ -48,3 +47,6 @@ scrape_configs:
       container_name:
       image_id:
       container_id:
+
+  - output:
+      source: output

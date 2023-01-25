@@ -4,7 +4,7 @@ services:
   # LOGS VISUALISATION AND LOGS COLLECTOR
   loki:
     image: grafana/loki:latest
-    mem_limit: 256M
+    mem_limit: 1G
     command: -config.file=/mnt/config/loki-config.yml
     restart: unless-stopped
     volumes:
@@ -17,7 +17,7 @@ services:
 
   promtail:
     image: grafana/promtail:latest
-    mem_limit: 64M
+    mem_limit: 512M
     command: -config.file=/mnt/config/promtail-config.yml
     ports:
       - 127.0.0.1:1514:1514
@@ -25,6 +25,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./promtail-config.yml:/mnt/config/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/host/logs:ro
 
   grafana:
     image: grafana/grafana-oss:latest
@@ -41,6 +43,6 @@ services:
       - .data/grafana:/var/lib/grafana
       - ./grafana.ini:/etc/grafana/grafana.ini
     ports:
-      - 127.0.0.1:8080:3000
+      - 8080:3000
     expose:
       - 8080
