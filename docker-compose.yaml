@@ -43,6 +43,6 @@ services:
       - .data/grafana:/var/lib/grafana
       - ./grafana.ini:/etc/grafana/grafana.ini
     ports:
-      - 8080:3000
+      - "${HTTP_PORT}:3000"
     expose:
-      - 8080
+      - ${HTTP_PORT}
