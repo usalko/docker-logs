@@ -1,0 +1,154 @@
+#!/bin/bash
+
+COMMAND=$1
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+    *)
+        COMMAND=$1
+        shift
+        break
+        ;;
+    esac
+    shift
+done
+
+if [ -f '.env' ]; then
+    echo Use .env file to read sensitive information
+    while IPS='=' read -r key _; do
+        eval "${key}"
+    done <'.env'
+else
+    # REGENERATE SENSITIVE INFO FROM TEMPLATE
+    cat >'.env' <<EOF
+HTTP_PORT=8080
+EOF
+fi
+
+echo EXECUTE
+echo "=========== $COMMAND"
+echo "$COMMAND ==========="
+echo COMMAND
+
+SERVICES=( 'loki' 'grafana' )
+
+function docker_build {
+    echo "Build docker image $1 from $2"
+    mkdir -p .prebuild
+    docker build -t "$1" -f "$2" "$3"
+    rm -fr .prebuild
+}
+
+function build {
+    # docker_build '<name+tag>' 'Dockerfile' '.' || exit 1
+    echo "Start build"
+}
+
+if [ "$COMMAND" == "build" ]; then
+    build
+fi
+
+function check_folder {
+    FOLDER=$1
+    mkdir -p "$FOLDER" || exit 1
+    chmod a+rwx "$FOLDER"
+    for SERVICE in "${SERVICES[@]}"; do
+        mkdir -p "$FOLDER/$SERVICE" || exit 1
+        chmod a+rwx "$FOLDER/$SERVICE"
+    done
+}
+
+function check_history_folder {
+    FOLDER=.history
+    mkdir -p $FOLDER || exit 1
+    chmod a+rwx $FOLDER
+    for SERVICE in "${SERVICES[@]}"; do
+        mkdir -p "$FOLDER/$SERVICE" || exit 1
+        chmod a+rwx "$FOLDER/$SERVICE"
+        touch "$FOLDER/$SERVICE/.bash_history"
+        chmod a+rwx "$FOLDER/$SERVICE/.bash_history"
+    done
+}
+
+function start {
+    echo 'Run docker images'
+    check_folder .data
+    
+    # Check the temporary folders
+    check_folder .tmp
+    
+    # Check the logger folders
+    check_folder .logs
+
+    # Tune front folders
+    mkdir -p .logs/front/nginx || exit 1
+    chmod a+rwx .logs/front/nginx
+    
+    # Check the home folders
+    check_history_folder
+    
+    if [ "$1" == "" ]; then
+        docker-compose up
+    else
+        docker-compose up "$@"
+    fi
+}
+
+if [ "$COMMAND" == "run" ] || [ "$COMMAND" == "up" ] || [ "$COMMAND" == "start" ] ; then
+    echo 'Run docker images'
+    
+    start "$@"
+    
+fi
+
+function stop {
+    if [ "$1" == "" ]; then
+        docker-compose down -v --remove-orphans
+    else
+        docker-compose stop "$@" --remove-orphans
+    fi
+}
+
+if [ "$COMMAND" == "stop" ] || [ "$COMMAND" == "down" ] || [ "$COMMAND" == "finish" ] ; then
+    echo 'Stop docker images'
+    
+    stop "$@"
+fi
+
+if [ "$COMMAND" == "restart" ] ; then
+    echo 'Restart services or whole system'
+    stop "$@"
+    start "$@"
+fi
+
+if [ "$COMMAND" == "deploy" ]; then
+    build
+    echo Deploy docker image to the remote repository
+fi
+
+if [ "$COMMAND" == "log" ] ; then
+    if [ "$*" == "" ]; then
+        echo 'Show logs tail <= 10000 entries'
+        docker-compose logs -f --tail 10000
+    else
+        echo "Show logs (docker compose logs -f $*)"
+        docker-compose logs -f "$@"
+    fi
+fi
+if [ "$COMMAND" == "logs" ] ; then
+    if [ "$*" == "" ]; then
+        echo 'Show logs with timestamp tail <= 10000 entries'
+        docker-compose logs -f --tail 10000 --timestamps
+    else
+        echo "Show logs with timestamp (docker compose logs -f --timestamps $*)"
+        docker-compose logs -f --timestamps "$@"
+    fi
+fi
+
+if [ "$COMMAND" == "install-loki-driver" ] ; then
+    docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+fi
+
+AVAILABLE_COMMANDS="build run up start stop down finish deploy redeps clean tests log logs install-loki-driver restart"
+echo ''
+[[ $AVAILABLE_COMMANDS =~ (^| )$COMMAND($| ) ]] && echo 'Ok' || echo 'Unknown command: ' "$COMMAND" && echo 'Available commands are: ' "$AVAILABLE_COMMANDS"
+
