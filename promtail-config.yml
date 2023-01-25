@@ -16,7 +16,7 @@ scrape_configs:
       - localhost
     labels:
       job: varlogs
-      __path__: /host/logs/*log
+      __path__: /host/logs/syslog
 
 - job_name: containers
 
